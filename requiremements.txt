@@ -10,4 +10,4 @@ streamlit
 statsmodels
 plotly
 scikit-learn
-matplotlib
+matplotlib>=3.0.0
