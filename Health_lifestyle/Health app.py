@@ -21,7 +21,8 @@ def load_data_from_github_raw(url):
     return df
 
 # Replace this with your actual GitHub raw URL of the .csv.gz file
-GITHUB_RAW_URL = "https://github.com/divyanshugoyal103/Dashboard_Streamlit_App/blob/f1da5750a69df6c4b8b691987d60b621fc9a411c/Health_lifestyle/health_lifestyle_classification.csv.gz"
+GITHUB_RAW_URL = "https://raw.githubusercontent.com/divyanshugoyal103/Dashboard_Streamlit_App/f1da5750a69df6c4b8b691987d60b621fc9a411c/Health_lifestyle/health_lifestyle_classification.csv.gz
+"
 
 # Load data
 df = load_data_from_github_raw(GITHUB_RAW_URL)
