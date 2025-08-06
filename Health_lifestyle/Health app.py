@@ -4,28 +4,27 @@ import pandas as pd
 import plotly.express as px
 import seaborn as sns
 import matplotlib.pyplot as plt
-import requests
-import gzip
-import io
+import gdown
+import os
 
 # Set Streamlit page settings
 st.set_page_config(page_title="Health & Lifestyle Dashboard", layout="wide")
 
+# Replace with your Google Drive file ID (from share link)
+FILE_ID = "divyanshugoyal103@gmail.com"
+FILE_NAME = "health_lifestyle_classification.csv"
+
 @st.cache_data
-def load_data_from_github_raw(url):
-    response = requests.get(url)
-    response.raise_for_status()  # Raise error if download failed
-    compressed_file = io.BytesIO(response.content)
-    with gzip.open(compressed_file, 'rt') as f:
-        df = pd.read_csv(f)
+def load_data():
+    # Download file if not present locally
+    if not os.path.exists(FILE_NAME):
+        url = f"https://drive.google.com/file/d/1IkBrsm7ekENjZWOTrODL8jdXJhRFcMJk/view?usp=drive_link"
+        gdown.download(url, FILE_NAME, quiet=False)
+    # Load CSV into DataFrame
+    df = pd.read_csv(FILE_NAME)
     return df
 
-# Replace this with your actual GitHub raw URL of the .csv.gz file
-GITHUB_RAW_URL = "https://raw.githubusercontent.com/divyanshugoyal103/Dashboard_Streamlit_App/f1da5750a69df6c4b8b691987d60b621fc9a411c/Health_lifestyle/health_lifestyle_classification.csv.gz
-"
-
-# Load data
-df = load_data_from_github_raw(GITHUB_RAW_URL)
+df = load_data()
 
 # Sidebar navigation
 with st.sidebar:
