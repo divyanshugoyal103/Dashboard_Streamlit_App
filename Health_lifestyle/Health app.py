@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.express as px
 import seaborn as sns
 import matplotlib.pyplot as plt
+import requests
 import gzip
 import io
 
@@ -11,113 +12,111 @@ import io
 st.set_page_config(page_title="Health & Lifestyle Dashboard", layout="wide")
 
 @st.cache_data
-def load_data(uploaded_file):
-    # uploaded_file is a BytesIO buffer from st.file_uploader
-    with gzip.open(uploaded_file, 'rt') as f:
+def load_data_from_github_raw(url):
+    response = requests.get(url)
+    response.raise_for_status()  # Raise error if download failed
+    compressed_file = io.BytesIO(response.content)
+    with gzip.open(compressed_file, 'rt') as f:
         df = pd.read_csv(f)
     return df
 
-st.title("Health & Lifestyle Dashboard")
+# Replace this with your actual GitHub raw URL of the .csv.gz file
+GITHUB_RAW_URL = "https://raw.githubusercontent.com/username/repo/branch/path/health_lifestyle_classification.csv.gz"
 
-uploaded_file = st.file_uploader("Upload your compressed health data file (.csv.gz)", type=["gz"])
+# Load data
+df = load_data_from_github_raw(GITHUB_RAW_URL)
 
-if uploaded_file is not None:
-    df = load_data(uploaded_file)
+# Sidebar navigation
+with st.sidebar:
+    selected = option_menu(
+        "Dashboard Pages",
+        ["Demographics & Target", "Health Metrics", "Lifestyle Factors", "Mental & Environmental"],
+        icons=["person", "activity", "heart-pulse", "cloud"],
+        menu_icon="bar-chart", default_index=0
+    )
 
-    # Sidebar navigation
-    with st.sidebar:
-        selected = option_menu(
-            "Dashboard Pages",
-            ["Demographics & Target", "Health Metrics", "Lifestyle Factors", "Mental & Environmental"],
-            icons=["person", "activity", "heart-pulse", "cloud"],
-            menu_icon="bar-chart", default_index=0
-        )
+# -------- PAGE 1: Demographics -------- #
+if selected == "Demographics & Target":
+    st.title("Demographics & Target Distribution")
 
-    # -------- PAGE 1: Demographics -------- #
-    if selected == "Demographics & Target":
-        st.title("Demographics & Target Distribution")
+    col1, col2 = st.columns(2)
 
-        col1, col2 = st.columns(2)
-
-        with col1:
-            st.subheader("Age Distribution")
-            fig = px.histogram(df, x='age', nbins=30, color_discrete_sequence=['#636EFA'])
-            st.plotly_chart(fig, use_container_width=True)
-
-        with col2:
-            st.subheader("Gender Distribution")
-            fig = px.pie(df, names='gender', hole=0.4, color_discrete_sequence=px.colors.sequential.RdBu)
-            st.plotly_chart(fig, use_container_width=True)
-
-        st.subheader("Target Class Distribution")
-        fig = px.histogram(df, x='target', color='target', color_discrete_sequence=px.colors.qualitative.Vivid)
+    with col1:
+        st.subheader("Age Distribution")
+        fig = px.histogram(df, x='age', nbins=30, color_discrete_sequence=['#636EFA'])
         st.plotly_chart(fig, use_container_width=True)
 
-        st.subheader("Health Classification by Gender")
-        gender_target_ct = pd.crosstab(df['gender'], df['target'], normalize='index')
-        st.dataframe(gender_target_ct.style.background_gradient(axis=1, cmap='viridis'), use_container_width=True)
-
-    # -------- PAGE 2: Health Metrics -------- #
-    elif selected == "Health Metrics":
-        st.title("Health Metrics Overview")
-        numeric_cols = ['bmi', 'waist_size', 'blood_pressure', 'heart_rate',
-                        'cholesterol', 'glucose', 'insulin']
-
-        selected_metric = st.selectbox("Select Health Metric", numeric_cols)
-        fig = px.box(df, x='target', y=selected_metric, color='target')
+    with col2:
+        st.subheader("Gender Distribution")
+        fig = px.pie(df, names='gender', hole=0.4, color_discrete_sequence=px.colors.sequential.RdBu)
         st.plotly_chart(fig, use_container_width=True)
 
-        st.subheader("Correlation Heatmap")
-        corr = df[numeric_cols].corr()
-        fig, ax = plt.subplots(figsize=(10, 6))
-        sns.heatmap(corr, annot=True, cmap='coolwarm', fmt='.2f', ax=ax)
-        st.pyplot(fig)
+    st.subheader("Target Class Distribution")
+    fig = px.histogram(df, x='target', color='target', color_discrete_sequence=px.colors.qualitative.Vivid)
+    st.plotly_chart(fig, use_container_width=True)
 
-    # -------- PAGE 3: Lifestyle Factors -------- #
-    elif selected == "Lifestyle Factors":
-        st.title("Lifestyle Factors")
+    st.subheader("Health Classification by Gender")
+    gender_target_ct = pd.crosstab(df['gender'], df['target'], normalize='index')
+    st.dataframe(gender_target_ct.style.background_gradient(axis=1, cmap='viridis'), use_container_width=True)
 
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("Sleep Hours by Target")
-            fig = px.box(df, x='target', y='sleep_hours', color='target')
-            st.plotly_chart(fig, use_container_width=True)
+# -------- PAGE 2: Health Metrics -------- #
+elif selected == "Health Metrics":
+    st.title("Health Metrics Overview")
+    numeric_cols = ['bmi', 'waist_size', 'blood_pressure', 'heart_rate',
+                    'cholesterol', 'glucose', 'insulin']
 
-            st.subheader("Physical Activity vs Target")
-            fig = px.box(df, x='target', y='physical_activity', color='target')
-            st.plotly_chart(fig, use_container_width=True)
+    selected_metric = st.selectbox("Select Health Metric", numeric_cols)
+    fig = px.box(df, x='target', y=selected_metric, color='target')
+    st.plotly_chart(fig, use_container_width=True)
 
-        with col2:
-            st.subheader("Daily Steps vs Target")
-            fig = px.box(df, x='target', y='daily_steps', color='target')
-            st.plotly_chart(fig, use_container_width=True)
+    st.subheader("Correlation Heatmap")
+    corr = df[numeric_cols].corr()
+    fig, ax = plt.subplots(figsize=(10, 6))
+    sns.heatmap(corr, annot=True, cmap='coolwarm', fmt='.2f', ax=ax)
+    st.pyplot(fig)
 
-            st.subheader("Screen Time vs Target")
-            fig = px.box(df, x='target', y='screen_time', color='target')
-            st.plotly_chart(fig, use_container_width=True)
+# -------- PAGE 3: Lifestyle Factors -------- #
+elif selected == "Lifestyle Factors":
+    st.title("Lifestyle Factors")
 
-    # -------- PAGE 4: Mental & Environmental -------- #
-    elif selected == "Mental & Environmental":
-        st.title("Mental & Environmental Factors")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Sleep Hours by Target")
+        fig = px.box(df, x='target', y='sleep_hours', color='target')
+        st.plotly_chart(fig, use_container_width=True)
 
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("Stress Level by Target")
-            fig = px.box(df, x='target', y='stress_level', color='target')
-            st.plotly_chart(fig, use_container_width=True)
+        st.subheader("Physical Activity vs Target")
+        fig = px.box(df, x='target', y='physical_activity', color='target')
+        st.plotly_chart(fig, use_container_width=True)
 
-            st.subheader("Mental Health Score")
-            fig = px.box(df, x='target', y='mental_health_score', color='target')
-            st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        st.subheader("Daily Steps vs Target")
+        fig = px.box(df, x='target', y='daily_steps', color='target')
+        st.plotly_chart(fig, use_container_width=True)
 
-        with col2:
-            st.subheader("Environmental Risk Score")
-            fig = px.box(df, x='target', y='environmental_risk_score', color='target')
-            st.plotly_chart(fig, use_container_width=True)
+        st.subheader("Screen Time vs Target")
+        fig = px.box(df, x='target', y='screen_time', color='target')
+        st.plotly_chart(fig, use_container_width=True)
 
-            st.subheader("Supplement Dosage")
-            fig = px.box(df, x='target', y='daily_supplement_dosage', color='target')
-            st.plotly_chart(fig, use_container_width=True)
+# -------- PAGE 4: Mental & Environmental -------- #
+elif selected == "Mental & Environmental":
+    st.title("Mental & Environmental Factors")
 
-else:
-    st.info("Please upload the compressed CSV file (.csv.gz) to get started.")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Stress Level by Target")
+        fig = px.box(df, x='target', y='stress_level', color='target')
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.subheader("Mental Health Score")
+        fig = px.box(df, x='target', y='mental_health_score', color='target')
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        st.subheader("Environmental Risk Score")
+        fig = px.box(df, x='target', y='environmental_risk_score', color='target')
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.subheader("Supplement Dosage")
+        fig = px.box(df, x='target', y='daily_supplement_dosage', color='target')
+        st.plotly_chart(fig, use_container_width=True)
