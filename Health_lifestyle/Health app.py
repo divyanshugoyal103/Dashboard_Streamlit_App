@@ -4,26 +4,27 @@ import pandas as pd
 import plotly.express as px
 import seaborn as sns
 import matplotlib.pyplot as plt
+import gzip
 
-# Load the dataset
+# Set Streamlit page settings
+st.set_page_config(page_title="Health & Lifestyle Dashboard", layout="wide")
+
+# Load compressed CSV
 @st.cache_data
 def load_data():
-    return pd.read_csv("health_lifestyle_classification.csv")
+    with gzip.open("health_lifestyle_classification.csv.gz", "rt") as f:
+        return pd.read_csv(f)
 
 df = load_data()
 
-# Set page config
-st.set_page_config(page_title="Health & Lifestyle Dashboard", layout="wide")
-
 # Sidebar navigation
 with st.sidebar:
-    selected = option_menu("Dashboard Pages",
-                           ["Demographics & Target",
-                            "Health Metrics",
-                            "Lifestyle Factors",
-                            "Mental & Environmental"],
-                           icons=['person', 'activity', 'heart-pulse', 'cloud'],
-                           menu_icon="bar-chart", default_index=0)
+    selected = option_menu(
+        "Dashboard Pages",
+        ["Demographics & Target", "Health Metrics", "Lifestyle Factors", "Mental & Environmental"],
+        icons=["person", "activity", "heart-pulse", "cloud"],
+        menu_icon="bar-chart", default_index=0
+    )
 
 # -------- PAGE 1: Demographics -------- #
 if selected == "Demographics & Target":
@@ -42,8 +43,7 @@ if selected == "Demographics & Target":
         st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("Target Class Distribution")
-    fig = px.histogram(df, x='target', color='target',
-                       color_discrete_sequence=px.colors.qualitative.Vivid)
+    fig = px.histogram(df, x='target', color='target', color_discrete_sequence=px.colors.qualitative.Vivid)
     st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("Health Classification by Gender")
@@ -56,7 +56,7 @@ elif selected == "Health Metrics":
     numeric_cols = ['bmi', 'waist_size', 'blood_pressure', 'heart_rate',
                     'cholesterol', 'glucose', 'insulin']
 
-    selected_metric = st.selectbox("Select Metric", numeric_cols)
+    selected_metric = st.selectbox("Select Health Metric", numeric_cols)
     fig = px.box(df, x='target', y=selected_metric, color='target')
     st.plotly_chart(fig, use_container_width=True)
 
