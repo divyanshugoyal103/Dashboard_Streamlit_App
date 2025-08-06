@@ -7,26 +7,35 @@ import matplotlib.pyplot as plt
 import gdown
 import os
 
-# Set Streamlit page settings
 st.set_page_config(page_title="Health & Lifestyle Dashboard", layout="wide")
 
-# Replace with your Google Drive file ID (from share link)
-FILE_ID = "divyanshugoyal103@gmail.com"
+FILE_ID = "ydivyanshugoyal103@gmail.com"
 FILE_NAME = "health_lifestyle_classification.csv"
 
 @st.cache_data
 def load_data():
-    # Download file if not present locally
     if not os.path.exists(FILE_NAME):
         url = f"https://drive.google.com/file/d/1IkBrsm7ekENjZWOTrODL8jdXJhRFcMJk/view?usp=drive_link"
         gdown.download(url, FILE_NAME, quiet=False)
-    # Load CSV into DataFrame
-    df = pd.read_csv(FILE_NAME)
+    try:
+        # Try reading normally first
+        df = pd.read_csv(FILE_NAME)
+    except pd.errors.ParserError:
+        # If error, try skipping bad lines and explicitly set delimiter as comma
+        df = pd.read_csv(FILE_NAME, sep=',', on_bad_lines='skip')
     return df
 
-df = load_data()
+try:
+    df = load_data()
+except Exception as e:
+    st.error(f"Error loading data: {e}")
+    with open(FILE_NAME, 'r', encoding='utf-8') as f:
+        st.text("First 10 lines of your CSV file for inspection:")
+        for _ in range(10):
+            line = f.readline()
+            st.text(line)
+    st.stop()
 
-# Sidebar navigation
 with st.sidebar:
     selected = option_menu(
         "Dashboard Pages",
@@ -35,7 +44,6 @@ with st.sidebar:
         menu_icon="bar-chart", default_index=0
     )
 
-# -------- PAGE 1: Demographics -------- #
 if selected == "Demographics & Target":
     st.title("Demographics & Target Distribution")
 
@@ -59,7 +67,6 @@ if selected == "Demographics & Target":
     gender_target_ct = pd.crosstab(df['gender'], df['target'], normalize='index')
     st.dataframe(gender_target_ct.style.background_gradient(axis=1, cmap='viridis'), use_container_width=True)
 
-# -------- PAGE 2: Health Metrics -------- #
 elif selected == "Health Metrics":
     st.title("Health Metrics Overview")
     numeric_cols = ['bmi', 'waist_size', 'blood_pressure', 'heart_rate',
@@ -75,7 +82,6 @@ elif selected == "Health Metrics":
     sns.heatmap(corr, annot=True, cmap='coolwarm', fmt='.2f', ax=ax)
     st.pyplot(fig)
 
-# -------- PAGE 3: Lifestyle Factors -------- #
 elif selected == "Lifestyle Factors":
     st.title("Lifestyle Factors")
 
@@ -98,7 +104,6 @@ elif selected == "Lifestyle Factors":
         fig = px.box(df, x='target', y='screen_time', color='target')
         st.plotly_chart(fig, use_container_width=True)
 
-# -------- PAGE 4: Mental & Environmental -------- #
 elif selected == "Mental & Environmental":
     st.title("Mental & Environmental Factors")
 
