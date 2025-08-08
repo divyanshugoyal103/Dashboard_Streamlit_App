@@ -5,3 +5,5 @@ llama-index-embeddings-nebius
 python-dotenv
 PyPDF2
 pydantic
+pandas
+plotly
