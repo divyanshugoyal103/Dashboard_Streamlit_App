@@ -1,46 +1,46 @@
-import re
-import pandas as pd
-from PyPDF2 import PdfReader
-from docx import Document
+import streamlit as st
+from utils import (
+    extract_text_from_pdf, extract_text_from_docx, compare_keywords, generate_bullet_point_nebius
+)
+from dotenv import load_dotenv
+import os
 
-def extract_text_from_pdf(file):
-    pdf = PdfReader(file)
-    return "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
+load_dotenv()
+NEBIUS_API_KEY = os.getenv("NEBIUS_API_KEY")
 
-def extract_text_from_docx(file):
-    doc = Document(file)
-    return "\n".join([para.text for para in doc.paragraphs])
+st.set_page_config(page_title="ATS Resume Optimizer", layout="wide")
+st.title("📄 ATS Resume Optimizer with Keyword Suggestions")
 
-def clean_text(text):
-    return re.sub(r"[^a-zA-Z0-9\s]", "", text).lower()
+col1, col2 = st.columns(2)
 
-def extract_keywords(text):
-    words = clean_text(text).split()
-    return set([w for w in words if len(w) > 2])  # remove short words
+with col1:
+    resume_file = st.file_uploader("Upload Your Resume (PDF/DOCX)", type=["pdf", "docx"])
 
-def compare_keywords(resume_text, jd_text):
-    resume_keywords = extract_keywords(resume_text)
-    jd_keywords = extract_keywords(jd_text)
-    missing_keywords = jd_keywords - resume_keywords
-    return sorted(list(missing_keywords))
+with col2:
+    jd_file = st.file_uploader("Upload Job Description (PDF/DOCX/TXT)", type=["pdf", "docx", "txt"])
 
-def generate_bullet_point_nebius(keyword, api_key):
-    import requests
-    url = "https://api.studio.nebius.ai/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "model": "gpt-4o-mini",
-        "messages": [
-            {"role": "system", "content": "You are an expert resume writer specializing in ATS optimization using the XYZ strategy."},
-            {"role": "user", "content": f"Write one bullet point for my resume using the XYZ strategy that incorporates the keyword '{keyword}' and makes it ATS-friendly."}
-        ],
-        "temperature": 0.7
-    }
-    response = requests.post(url, headers=headers, json=payload)
-    if response.status_code == 200:
-        return response.json()["choices"][0]["message"]["content"].strip()
+if resume_file and jd_file:
+    # Extract text
+    if resume_file.type == "application/pdf":
+        resume_text = extract_text_from_pdf(resume_file)
     else:
-        return f"Error generating bullet point: {response.text}"
+        resume_text = extract_text_from_docx(resume_file)
+
+    if jd_file.type == "application/pdf":
+        jd_text = extract_text_from_pdf(jd_file)
+    elif jd_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        jd_text = extract_text_from_docx(jd_file)
+    else:
+        jd_text = jd_file.read().decode("utf-8")
+
+    # Compare keywords
+    missing_keywords = compare_keywords(resume_text, jd_text)
+
+    st.subheader("🔍 Missing Keywords")
+    if missing_keywords:
+        for keyword in missing_keywords:
+            if st.button(f"Generate Bullet for '{keyword}'"):
+                bullet = generate_bullet_point_nebius(keyword, NEBIUS_API_KEY)
+                st.success(bullet)
+    else:
+        st.success("Your resume contains all major keywords from the job description ✅")
