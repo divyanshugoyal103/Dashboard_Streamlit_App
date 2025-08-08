@@ -1,29 +1,46 @@
-import streamlit as st
-from utils.keyword_matcher import extract_keywords, find_missing_keywords
-from utils.bullet_generator import generate_xyz_bullet
-import os
+import re
+import pandas as pd
+from PyPDF2 import PdfReader
+from docx import Document
 
-st.set_page_config(page_title="Resume Optimizer", layout="wide")
+def extract_text_from_pdf(file):
+    pdf = PdfReader(file)
+    return "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
 
-st.title("📄 Resume Optimizer for ATS")
+def extract_text_from_docx(file):
+    doc = Document(file)
+    return "\n".join([para.text for para in doc.paragraphs])
 
-# Upload resume and job description
-resume_text = st.text_area("Paste your resume text here")
-job_description = st.text_area("Paste the job description here")
+def clean_text(text):
+    return re.sub(r"[^a-zA-Z0-9\s]", "", text).lower()
 
-if st.button("Analyze Resume"):
-    if resume_text and job_description:
-        resume_keywords = extract_keywords(resume_text)
-        jd_keywords = extract_keywords(job_description)
-        missing_keywords = find_missing_keywords(resume_keywords, jd_keywords)
-        
-        if missing_keywords:
-            st.subheader("Missing Keywords")
-            for keyword in missing_keywords:
-                if st.button(f"Generate bullet for '{keyword}'"):
-                    bullet = generate_xyz_bullet(keyword)
-                    st.write(f"- {bullet}")
-        else:
-            st.success("Your resume contains all the relevant keywords!")
+def extract_keywords(text):
+    words = clean_text(text).split()
+    return set([w for w in words if len(w) > 2])  # remove short words
+
+def compare_keywords(resume_text, jd_text):
+    resume_keywords = extract_keywords(resume_text)
+    jd_keywords = extract_keywords(jd_text)
+    missing_keywords = jd_keywords - resume_keywords
+    return sorted(list(missing_keywords))
+
+def generate_bullet_point_nebius(keyword, api_key):
+    import requests
+    url = "https://api.studio.nebius.ai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "gpt-4o-mini",
+        "messages": [
+            {"role": "system", "content": "You are an expert resume writer specializing in ATS optimization using the XYZ strategy."},
+            {"role": "user", "content": f"Write one bullet point for my resume using the XYZ strategy that incorporates the keyword '{keyword}' and makes it ATS-friendly."}
+        ],
+        "temperature": 0.7
+    }
+    response = requests.post(url, headers=headers, json=payload)
+    if response.status_code == 200:
+        return response.json()["choices"][0]["message"]["content"].strip()
     else:
-        st.error("Please paste both your resume and the job description.")
+        return f"Error generating bullet point: {response.text}"
