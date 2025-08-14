@@ -1,4 +1,13 @@
 streamlit
-pandas 
-numpy 
-openpyxl
+seaborn
+openpyxl 
+xlsxwriter
+streamlit-aggrid
+pandas
+numpy
+scipy==1.11.4
+streamlit
+statsmodels
+plotly
+scikit-learn
+matplotlib>=3.0.0
