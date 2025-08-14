@@ -1,4 +1,4 @@
-# To run this app, you'll need to install the necessary libraries:
+# You must install these libraries to run the app:
 # pip install streamlit pandas ydata-profiling openpyxl
 
 import streamlit as st
@@ -12,7 +12,6 @@ def main():
     """
     Main function to create and run the Streamlit data profiler app.
     """
-    # 🎨 Professional UI: Modern Design & Responsive Layout
     st.set_page_config(
         page_title="Data Profiler App",
         layout="wide",
@@ -23,7 +22,7 @@ def main():
     st.title("📊 Data Upload & Profiler")
     st.markdown("Upload your CSV or Excel file to get a detailed, interactive data quality report.")
 
-    # --- File Upload Section (Drag & Drop, Click to Browse) ---
+    # --- File Upload Section ---
     uploaded_file = st.file_uploader(
         "**Step 1: Upload Your Data**",
         type=["csv", "xlsx", "xls"],
@@ -32,7 +31,6 @@ def main():
 
     if uploaded_file:
         try:
-            # 🚀 Real-time upload feedback with loading states
             with st.spinner("⏳ Reading your file..."):
                 file_extension = uploaded_file.name.split('.')[-1].lower()
                 
@@ -50,17 +48,16 @@ def main():
                 st.warning("The uploaded file is empty or could not be parsed.")
                 return
 
-            # --- Data Preview Section ---
+            # --- Data Preview ---
             st.markdown("---")
             st.header("🔍 Data Preview")
             st.write(f"The dataset contains **{df.shape[0]} rows** and **{df.shape[1]} columns**.")
             st.dataframe(df.head())
 
-            # --- Comprehensive Data Profiling ---
+            # --- Data Profiling ---
             st.markdown("---")
             st.header("📊 Generating Profile Report...")
             
-            # Progress Indicators: Loading states
             with st.spinner("Analyzing your data, this may take a moment..."):
                 profile = ProfileReport(
                     df, 
@@ -68,21 +65,18 @@ def main():
                     explorative=True
                 )
             
-            st.success("✅ Profile report generated! Now you can view and download the report.")
+            st.success("✅ Profile report generated!")
 
-            # --- View and Export Capabilities ---
+            # --- View and Export Report ---
             st.markdown("---")
             st.header("📄 Interactive Profile Report")
-            st.info("The interactive report provides a deep dive into your data, including all the features you listed.")
+            st.info("The report is an interactive HTML file. You can view it directly or download it.")
 
-            # Create a temporary HTML file for the report
             with tempfile.NamedTemporaryFile(delete=False, suffix=".html") as fp:
                 profile.to_file(fp.name)
                 
-                # Display the report in the app
                 st.components.v1.html(profile.to_html(), height=800, scrolling=True)
 
-                # Download HTML report button
                 with open(fp.name, "rb") as f:
                     st.download_button(
                         label="⬇️ Download Profile Report as HTML",
@@ -91,12 +85,10 @@ def main():
                         mime="text/html"
                     )
 
-            # 💾 Export Capabilities: Download JSON Report
             st.markdown("---")
             st.header("JSON Report")
             json_report = profile.get_description().as_json()
             
-            # Timestamped Files
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             filename = f"profile_{uploaded_file.name.split('.')[0]}_{timestamp}.json"
 
@@ -113,3 +105,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
