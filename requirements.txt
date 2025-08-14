@@ -11,3 +11,4 @@ statsmodels
 plotly
 scikit-learn
 matplotlib>=3.0.0
+ydata-profiling
