@@ -8,22 +8,22 @@ import json
 from datetime import datetime
 from io import BytesIO
 
-# --- Data Profiling Function to Generate JSON ---
-def create_profile_report(df, filename):
+# --- Data Profiling Function to Generate Structured Report Data ---
+def create_profile_report_data(df, filename):
     """
     Analyzes a DataFrame and generates a dictionary with the specified profiling structure.
     """
     rows, cols = df.shape
-    
-    # Calculate basic info
+
+    # Calculate basic info and memory usage
     memory_estimate = f"{df.memory_usage(deep=True).sum() / (1024 * 1024):.2f}"
-    
+
     basic_info = {
         "rows": rows,
         "columns": cols,
         "memoryEstimate": memory_estimate
     }
-    
+
     column_summary = []
     quality_issues = []
     optimization_suggestions = []
@@ -36,24 +36,35 @@ def create_profile_report(df, filename):
     # Analyze each column
     for col in df.columns:
         series = df[col]
-        col_type = str(series.dtype)
         
-        # Determine column type for the report
+        # Determine column type
         if pd.api.types.is_numeric_dtype(series):
             report_type = "numeric"
         elif pd.api.types.is_datetime64_any_dtype(series):
-            report_type = "date"
+            report_type = "date/time"
         else:
             report_type = "categorical"
-        
+            
         # Missing values
         missing_count = series.isnull().sum()
         missing_percent = f"{(missing_count / rows) * 100:.0f}%"
         
         # Unique values
         unique_count = series.nunique()
+        
+        # Get top values for categorical data
+        top_values = []
+        if report_type == "categorical":
+            if not series.empty:
+                value_counts = series.value_counts(normalize=True).head(1)
+                for val, percent in value_counts.items():
+                    top_values.append({
+                        "value": val,
+                        "percent": f"{percent * 100:.1f}%"
+                    })
 
         # Check for potential issues and optimizations
+        outliers = 0
         if pd.api.types.is_numeric_dtype(series):
             # Outlier detection using IQR
             q1 = series.quantile(0.25)
@@ -75,30 +86,43 @@ def create_profile_report(df, filename):
             "column": col,
             "type": report_type,
             "missing": missing_percent,
-            "unique": unique_count
+            "unique": unique_count,
+            "top_values": top_values,
+            "outliers": outliers
         })
 
-    # Build the final JSON structure
-    report = {
+    # Get column type counts for the summary
+    column_types = {
+        "numeric": 0,
+        "categorical": 0,
+        "date/time": 0
+    }
+    for col_info in column_summary:
+        if col_info["type"] in column_types:
+            column_types[col_info["type"]] += 1
+
+    report_data = {
         "filename": filename,
         "timestamp": datetime.now().isoformat(),
         "basicInfo": basic_info,
+        "columnTypes": column_types,
         "columnSummary": column_summary,
         "qualityIssues": quality_issues,
-        "optimizationSuggestions": optimizationSuggestions
+        "optimizationSuggestions": optimization_suggestions
     }
     
-    return report
+    return report_data
 
 # --- Streamlit UI and App Logic ---
 def main():
     st.set_page_config(
         page_title="JSON Data Profiler",
-        layout="wide"
+        layout="wide",
+        initial_sidebar_state="expanded"
     )
 
-    st.title("📊 Data Profiler for JSON Reports")
-    st.markdown("Upload your CSV or Excel file to generate a structured JSON profile report.")
+    st.title("📊 Data Upload & Profiler")
+    st.markdown("Upload your CSV or Excel file to get instant data insights and quality analysis.")
 
     uploaded_file = st.file_uploader(
         "**Step 1: Upload Your Data**",
@@ -115,27 +139,72 @@ def main():
                 elif file_extension in ['xlsx', 'xls']:
                     df = pd.read_excel(uploaded_file, engine='openpyxl')
             
-            st.success("🎉 File uploaded and read successfully!")
-
+            st.success(f"🎉 Uploaded: {uploaded_file.name}")
+            
             st.markdown("---")
             st.header("🔍 Data Preview")
-            st.write(f"The dataset contains **{df.shape[0]} rows** and **{df.shape[1]} columns**.")
+            st.write(f"({df.shape[0]} rows total)")
             st.dataframe(df.head())
+            
+            # Generate the report data
+            report = create_profile_report_data(df, uploaded_file.name)
+
+            # --- Render the Report Sections ---
+            st.markdown("---")
+            st.header("Dataset Overview")
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Rows", f"{report['basicInfo']['rows']:,}")
+            with col2:
+                st.metric("Columns", f"{report['basicInfo']['columns']}")
+            with col3:
+                st.metric("Est. Memory", f"{report['basicInfo']['memoryEstimate']} MB")
 
             st.markdown("---")
-            st.header("⬇️ Download Your Report")
+            st.header("Column Types")
+            col_type1, col_type2, col_type3 = st.columns(3)
+            with col_type1:
+                st.metric("Numeric", report["columnTypes"]["numeric"])
+            with col_type2:
+                st.metric("Categorical", report["columnTypes"]["categorical"])
+            with col_type3:
+                st.metric("Date/Time", report["columnTypes"]["date/time"])
+
+            st.markdown("---")
+            st.header("Column Analysis")
             
-            with st.spinner("Generating JSON report..."):
-                report_data = create_profile_report(df, uploaded_file.name)
+            # Create a dataframe for the column summary table
+            summary_df = pd.DataFrame(report["columnSummary"])
+            # Format the dataframe for display, keeping only key columns
+            display_df = summary_df[['column', 'type', 'missing', 'unique']]
             
-            json_report = json.dumps(report_data, indent=2)
-            
-            # Use BytesIO to create an in-memory file for download
+            st.table(display_df)
+
+            st.markdown("---")
+            st.header("Data Quality Issues")
+            if report["qualityIssues"]:
+                for issue in report["qualityIssues"]:
+                    st.warning(f"⚠️ {issue}")
+            else:
+                st.success("✅ No major data quality issues found.")
+
+            st.markdown("---")
+            st.header("Optimization Suggestions")
+            if report["optimizationSuggestions"]:
+                for suggestion in report["optimizationSuggestions"]:
+                    st.info(f"💡 {suggestion}")
+            else:
+                st.success("✅ No major optimization suggestions.")
+
+            # Add the download button for the JSON report
+            st.markdown("---")
+            json_report = json.dumps(report, indent=2)
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             download_filename = f"profile_{uploaded_file.name.split('.')[0]}_{timestamp}.json"
             
             st.download_button(
-                label="⬇️ Download JSON Report",
+                label="⬇️ Download Full JSON Report",
                 data=json_report,
                 file_name=download_filename,
                 mime="application/json"
