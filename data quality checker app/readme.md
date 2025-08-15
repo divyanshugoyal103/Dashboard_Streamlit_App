@@ -4,10 +4,7 @@ Five Python scripts useful for data science tasks. Stop wrestling with repetitiv
 
 ### Quick Data Quality Check
 
-#### Upload your Data and give a check
-
-
- App url- https://dashboardappapp-n5zdaaoappnf2f9mbz6eenj.streamlit.app/
+#### App URL- https://dashboardappapp-n5zdaaoappnf2f9mbz6eenj.streamlit.app/
 ```python
 from data_quality_checker import data_quality_report
 import pandas as pd
@@ -24,7 +21,8 @@ from smart_file_merger import smart_file_merger
 merged_df = smart_file_merger('/path/to/data/folder')
 ```
 
-### Instant Dataset Profile
+### Dataset Profiling 
+#### App URL- https://dashboardappapp-8tc7dqsdsxwiajrzrxrdnq.streamlit.app/
 ```python
 from dataset_profiler import quick_profile
 
@@ -44,7 +42,7 @@ vm.list_versions()  # See all saved versions
 ```
 
 ### Export to Multiple Formats
-#### App Url https://dashboardappapp-5fzznhy5qjegtsnd8f72d7.streamlit.app/
+#### App URL https://dashboardappapp-5fzznhy5qjegtsnd8f72d7.streamlit.app/
 ```python
 from multi_format_exporter import DataExporter
 
