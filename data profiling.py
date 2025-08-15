@@ -8,77 +8,6 @@ import json
 from datetime import datetime
 from io import BytesIO
 
-# --- Custom CSS for a professional look ---
-st.markdown("""
-<style>
-    /* Main Content */
-    .reportview-container {
-        background: #f0f2f6;
-    }
-    .main .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-        padding-left: 1rem;
-        padding-right: 1rem;
-    }
-    
-    /* Header and Title */
-    h1 {
-        color: #1a237e;
-        font-family: 'Helvetica Neue', Arial, sans-serif;
-        font-weight: 700;
-    }
-
-    /* Metric Cards */
-    [data-testid="stMetric"] {
-        background-color: #ffffff;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        text-align: center;
-    }
-    [data-testid="stMetricLabel"] {
-        font-size: 1rem;
-        color: #4a4a4a;
-        font-weight: 600;
-    }
-    [data-testid="stMetricValue"] {
-        color: #1a237e;
-        font-size: 2rem;
-        font-weight: 700;
-    }
-
-    /* Section Headers */
-    h2 {
-        color: #37474f;
-        border-bottom: 2px solid #e0e0e0;
-        padding-bottom: 0.5rem;
-        margin-top: 2rem;
-    }
-
-    /* Table Styling */
-    .stTable {
-        border-radius: 0.5rem;
-        overflow: hidden;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-
-    /* Warning and Info Boxes */
-    div.stAlert.stAlert--info {
-        background-color: #e3f2fd;
-        border-left-color: #2196f3;
-        color: #2196f3;
-        font-weight: 500;
-    }
-    div.stAlert.stAlert--warning {
-        background-color: #fff3e0;
-        border-left-color: #ff9800;
-        color: #ff9800;
-        font-weight: 500;
-    }
-</style>
-""", unsafe_allow_html=True)
-
 # --- Data Profiling Function to Generate Structured Report Data ---
 def create_profile_report_data(df, filename):
     """
@@ -221,58 +150,17 @@ def main():
         initial_sidebar_state="expanded"
     )
 
-    # --- Sidebar for File Upload and Controls ---
-    with st.sidebar:
-        st.title("📂 Controls")
-        st.markdown("Upload your file and view the report on the right.")
-        
-        uploaded_file = st.file_uploader(
-            "**Upload Your Data**",
-            type=["csv", "xlsx", "xls"]
-        )
+    st.title("📊 Data Upload & Profiler")
+    st.markdown("Upload your CSV or Excel file to get instant data insights and quality analysis.")
 
-        if uploaded_file:
-            st.markdown("---")
-            st.success("File uploaded! Analyzing...")
+    uploaded_file = st.file_uploader(
+        "**Step 1: Upload Your Data**",
+        type=["csv", "xlsx", "xls"]
+    )
 
-            file_extension = uploaded_file.name.split('.')[-1].lower()
-            try:
-                if file_extension == 'csv':
-                    df = pd.read_csv(uploaded_file)
-                elif file_extension in ['xlsx', 'xls']:
-                    df = pd.read_excel(uploaded_file, engine='openpyxl')
-                else:
-                    st.error("Unsupported file format.")
-                    return
-                
-                # Generate report data and make it available for download
-                report_data = create_profile_report_data(df, uploaded_file.name)
-                json_report = json.dumps(report_data, indent=2)
-                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-                download_filename = f"profile_{uploaded_file.name.split('.')[0]}_{timestamp}.json"
-                
-                st.download_button(
-                    label="⬇️ Download Full JSON Report",
-                    data=json_report,
-                    file_name=download_filename,
-                    mime="application/json",
-                    use_container_width=True
-                )
-
-            except Exception as e:
-                st.error(f"Error reading file: {e}")
-                st.info("Please check if the file is correctly formatted.")
-                return
-
-    # --- Main Content Area ---
-    st.title("📊 Data Profiler")
-    st.markdown("## Instant Insights & Quality Analysis")
-
-    if uploaded_file is None:
-        st.info("⬅️ Please upload a file to get started.")
-    else:
+    if uploaded_file:
         try:
-            with st.spinner("⏳ Analyzing data..."):
+            with st.spinner("⏳ Reading your file..."):
                 file_extension = uploaded_file.name.split('.')[-1].lower()
                 
                 if file_extension == 'csv':
@@ -280,17 +168,18 @@ def main():
                 elif file_extension in ['xlsx', 'xls']:
                     df = pd.read_excel(uploaded_file, engine='openpyxl')
             
-            # Check if the DataFrame is empty
-            if df.empty:
-                st.warning("The uploaded file is empty or could not be read.")
-                return
-
-            st.success(f"🎉 **Uploaded:** {uploaded_file.name}")
+            st.success(f"🎉 Uploaded: {uploaded_file.name}")
+            
+            st.markdown("---")
+            st.header("🔍 Data Preview")
+            st.write(f"({df.shape[0]} rows total)")
+            st.dataframe(df.head())
             
             # Generate the report data
             report = create_profile_report_data(df, uploaded_file.name)
 
-            # --- Dataset Overview ---
+            # --- Render the Report Sections ---
+            st.markdown("---")
             st.header("Dataset Overview")
             
             col1, col2, col3 = st.columns(3)
@@ -301,42 +190,46 @@ def main():
             with col3:
                 st.metric("Est. Memory", f"{report['basicInfo']['memoryEstimate']} MB")
 
-            # --- Data Preview ---
-            st.header("Data Preview")
-            st.write(f"({df.shape[0]} rows total)")
-            st.dataframe(df.head())
-
-            # --- Column Analysis ---
+            st.markdown("---")
             st.header("Column Analysis")
             
             # Create a dataframe for the column summary table with details
             summary_df = pd.DataFrame(report["columnSummary"])
             st.table(summary_df[['column', 'type', 'missing_percent', 'unique', 'details']])
 
-            # --- Quality Issues & Optimization Suggestions ---
-            st.header("Data Quality Report")
-            
-            # --- Data Quality Issues Section ---
-            st.subheader("Data Quality Issues")
+            st.markdown("---")
+            st.header("Data Quality Issues")
             if report["qualityIssues"]:
                 for issue in report["qualityIssues"]:
                     if issue["type"] == "Duplicate Rows":
-                        st.warning(f"⚠️ **{issue['count']}** duplicate rows found. See preview below:")
+                        st.warning(f"⚠️ **{issue['count']}** duplicate rows found.")
                         st.dataframe(pd.DataFrame(issue["details"]))
-                    elif issue["type"] == "Duplicate Columns":
-                        st.warning(f"⚠️ **{issue['count']}** duplicate columns found. {issue['details']}")
                     else:
                         st.warning(f"⚠️ {issue['details']}")
             else:
                 st.success("✅ No major data quality issues found.")
-                
-            # --- Optimization Suggestions Section ---
-            st.subheader("Optimization Suggestions")
+
+            st.markdown("---")
+            st.header("Optimization Suggestions")
             if report["optimizationSuggestions"]:
                 for suggestion in report["optimizationSuggestions"]:
                     st.info(f"💡 {suggestion}")
             else:
                 st.success("✅ No major optimization suggestions.")
+
+            # Add the download button for the JSON report
+            st.markdown("---")
+            st.header("Download Report")
+            json_report = json.dumps(report, indent=2)
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            download_filename = f"profile_{uploaded_file.name.split('.')[0]}_{timestamp}.json"
+            
+            st.download_button(
+                label="⬇️ Download Full JSON Report",
+                data=json_report,
+                file_name=download_filename,
+                mime="application/json"
+            )
 
         except Exception as e:
             st.error(f"An error occurred: {e}")
