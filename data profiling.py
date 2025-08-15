@@ -53,15 +53,17 @@ def create_profile_report_data(df, filename):
         # Unique values
         unique_count = series.nunique()
         
-        # Initialize statistics dictionary
-        stats = {}
+        details = ""
         
         if report_type == "numeric":
             # Column statistics for numeric data
-            stats["min"] = series.min()
-            stats["max"] = series.max()
-            stats["mean"] = series.mean()
-            stats["median"] = series.median()
+            stats = {
+                "min": series.min(),
+                "max": series.max(),
+                "mean": series.mean(),
+                "median": series.median()
+            }
+            details += f"Range: {stats['min']:.2f} - {stats['max']:.2f}"
             
             # Outlier detection using IQR
             q1 = series.quantile(0.25)
@@ -72,18 +74,14 @@ def create_profile_report_data(df, filename):
             outliers = series[(series < lower_bound) | (series > upper_bound)].count()
             if outliers > 0:
                 quality_issues.append(f"{col}: {outliers} potential outliers detected")
+                details += f"\n{outliers} outliers"
             
-        top_values = []
         if report_type == "categorical":
             # Get top values for categorical data
             if not series.empty:
-                value_counts = series.value_counts(normalize=True).head(5)
+                value_counts = series.value_counts(normalize=True).head(1)
                 for val, percent in value_counts.items():
-                    top_values.append({
-                        "value": str(val),
-                        "count": int(series.value_counts()[val]),
-                        "percent": f"{percent * 100:.1f}%"
-                    })
+                    details += f"Top: {val} ({percent * 100:.1f}%)"
         
         # Check for potential issues and optimizations
         if report_type == "categorical" and unique_count / rows > 0.95:
@@ -97,8 +95,7 @@ def create_profile_report_data(df, filename):
             "type": report_type,
             "missing_percent": missing_percent,
             "unique": unique_count,
-            "stats": stats,
-            "top_values": top_values,
+            "details": details
         })
 
     # Get column type counts for the summary
@@ -172,23 +169,21 @@ def main():
                 st.metric("Est. Memory", f"{report['basicInfo']['memoryEstimate']} MB")
 
             st.markdown("---")
+            st.header("Column Types")
+            col_type1, col_type2, col_type3 = st.columns(3)
+            with col_type1:
+                st.metric("Numeric", report["columnTypes"]["numeric"])
+            with col_type2:
+                st.metric("Categorical", report["columnTypes"]["categorical"])
+            with col_type3:
+                st.metric("Date/Time", report["columnTypes"]["date/time"])
+
+            st.markdown("---")
             st.header("Column Analysis")
             
-            # Display detailed analysis for each column using an expander
-            for col_info in report["columnSummary"]:
-                with st.expander(f"**{col_info['column']}** ({col_info['type']})"):
-                    st.write(f"**Unique Values:** {col_info['unique']}")
-                    st.write(f"**Missing Values:** {col_info['missing_percent']}")
-                    
-                    if col_info["type"] == "numeric":
-                        st.subheader("Statistics")
-                        stats_df = pd.DataFrame([col_info["stats"]]).T.rename(columns={0: "Value"})
-                        st.table(stats_df.style.format(precision=2))
-                    
-                    if col_info["type"] == "categorical" and col_info["top_values"]:
-                        st.subheader("Top Values")
-                        top_values_df = pd.DataFrame(col_info["top_values"])
-                        st.dataframe(top_values_df)
+            # Create a dataframe for the column summary table with details
+            summary_df = pd.DataFrame(report["columnSummary"])
+            st.table(summary_df[['column', 'type', 'missing_percent', 'unique', 'details']])
 
             st.markdown("---")
             st.header("Data Quality Issues")
