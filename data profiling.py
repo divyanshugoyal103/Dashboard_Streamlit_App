@@ -11,7 +11,8 @@ from io import BytesIO
 # --- Data Profiling Function to Generate Structured Report Data ---
 def create_profile_report_data(df, filename):
     """
-    Analyzes a DataFrame and generates a dictionary with the specified profiling structure.
+    Analyzes a DataFrame and generates a dictionary with the specified profiling structure,
+    including detailed column statistics.
     """
     rows, cols = df.shape
 
@@ -52,20 +53,16 @@ def create_profile_report_data(df, filename):
         # Unique values
         unique_count = series.nunique()
         
-        # Get top values for categorical data
-        top_values = []
-        if report_type == "categorical":
-            if not series.empty:
-                value_counts = series.value_counts(normalize=True).head(1)
-                for val, percent in value_counts.items():
-                    top_values.append({
-                        "value": val,
-                        "percent": f"{percent * 100:.1f}%"
-                    })
-
-        # Check for potential issues and optimizations
-        outliers = 0
-        if pd.api.types.is_numeric_dtype(series):
+        # Initialize statistics dictionary
+        stats = {}
+        
+        if report_type == "numeric":
+            # Column statistics for numeric data
+            stats["min"] = series.min()
+            stats["max"] = series.max()
+            stats["mean"] = series.mean()
+            stats["median"] = series.median()
+            
             # Outlier detection using IQR
             q1 = series.quantile(0.25)
             q3 = series.quantile(0.75)
@@ -75,7 +72,20 @@ def create_profile_report_data(df, filename):
             outliers = series[(series < lower_bound) | (series > upper_bound)].count()
             if outliers > 0:
                 quality_issues.append(f"{col}: {outliers} potential outliers detected")
+            
+        top_values = []
+        if report_type == "categorical":
+            # Get top values for categorical data
+            if not series.empty:
+                value_counts = series.value_counts(normalize=True).head(5)
+                for val, percent in value_counts.items():
+                    top_values.append({
+                        "value": str(val),
+                        "count": int(series.value_counts()[val]),
+                        "percent": f"{percent * 100:.1f}%"
+                    })
         
+        # Check for potential issues and optimizations
         if report_type == "categorical" and unique_count / rows > 0.95:
             quality_issues.append(f"{col}: Potential ID column ({unique_count / rows * 100:.0f}% unique)")
         
@@ -85,10 +95,10 @@ def create_profile_report_data(df, filename):
         column_summary.append({
             "column": col,
             "type": report_type,
-            "missing": missing_percent,
+            "missing_percent": missing_percent,
             "unique": unique_count,
+            "stats": stats,
             "top_values": top_values,
-            "outliers": outliers
         })
 
     # Get column type counts for the summary
@@ -162,24 +172,23 @@ def main():
                 st.metric("Est. Memory", f"{report['basicInfo']['memoryEstimate']} MB")
 
             st.markdown("---")
-            st.header("Column Types")
-            col_type1, col_type2, col_type3 = st.columns(3)
-            with col_type1:
-                st.metric("Numeric", report["columnTypes"]["numeric"])
-            with col_type2:
-                st.metric("Categorical", report["columnTypes"]["categorical"])
-            with col_type3:
-                st.metric("Date/Time", report["columnTypes"]["date/time"])
-
-            st.markdown("---")
             st.header("Column Analysis")
             
-            # Create a dataframe for the column summary table
-            summary_df = pd.DataFrame(report["columnSummary"])
-            # Format the dataframe for display, keeping only key columns
-            display_df = summary_df[['column', 'type', 'missing', 'unique']]
-            
-            st.table(display_df)
+            # Display detailed analysis for each column using an expander
+            for col_info in report["columnSummary"]:
+                with st.expander(f"**{col_info['column']}** ({col_info['type']})"):
+                    st.write(f"**Unique Values:** {col_info['unique']}")
+                    st.write(f"**Missing Values:** {col_info['missing_percent']}")
+                    
+                    if col_info["type"] == "numeric":
+                        st.subheader("Statistics")
+                        stats_df = pd.DataFrame([col_info["stats"]]).T.rename(columns={0: "Value"})
+                        st.table(stats_df.style.format(precision=2))
+                    
+                    if col_info["type"] == "categorical" and col_info["top_values"]:
+                        st.subheader("Top Values")
+                        top_values_df = pd.DataFrame(col_info["top_values"])
+                        st.dataframe(top_values_df)
 
             st.markdown("---")
             st.header("Data Quality Issues")
@@ -199,6 +208,7 @@ def main():
 
             # Add the download button for the JSON report
             st.markdown("---")
+            st.header("Download Report")
             json_report = json.dumps(report, indent=2)
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             download_filename = f"profile_{uploaded_file.name.split('.')[0]}_{timestamp}.json"
