@@ -2,6 +2,8 @@
 
 Five Python scripts useful for data science tasks. Stop wrestling with repetitive tasks and focus on actual analysis.
 
+Ready-to-use scripts in the form of an app are also available. Just click on the link.
+
 ### Quick Data Quality Check
 
 #### App URL- https://dashboardappapp-n5zdaaoappnf2f9mbz6eenj.streamlit.app/
