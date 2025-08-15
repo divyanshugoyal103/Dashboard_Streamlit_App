@@ -1,11 +1,10 @@
-# Essential Data Scripts for Busy Professionals
+# Essential Data Scripts for Data Professionals and Ready to use App
 
 Five Python scripts useful for data science tasks. Stop wrestling with repetitive tasks and focus on actual analysis.
 
-## Usage Examples
-
 ### Quick Data Quality Check
 
+''' Upload your Data and give a check'''
  App url- https://dashboardappapp-n5zdaaoappnf2f9mbz6eenj.streamlit.app/
 ```python
 from data_quality_checker import data_quality_report
