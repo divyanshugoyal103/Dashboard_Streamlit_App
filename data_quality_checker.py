@@ -111,7 +111,8 @@ def generate_report(df: pd.DataFrame) -> dict:
         'column_info': column_info,
         'quality_score': max(quality_score, 0),
         'penalties': penalties,
-        'recommendations': recommendations
+        'recommendations': recommendations,
+        'missing_counts': missing_counts
     }
 
 def main():
@@ -171,19 +172,12 @@ def main():
 
                 # Missing values and duplicates
                 st.markdown("---")
-                if report['total_missing'] > 0:
-                    st.warning("⚠️ Missing Values Found")
-                    missing_df = pd.DataFrame(report['missing_analysis']).T.rename(columns={'count': 'Missing Count', 'percentage': 'Missing Percentage (%)'})
-                    st.dataframe(missing_df.style.format({'Missing Percentage (%)': '{:.1f}'}), use_container_width=True)
-                else:
-                    st.success("✅ No missing values found.")
-
                 if report['duplicate_rows'] > 0:
                     st.warning(f"⚠️ Found {report['duplicate_rows']} duplicate rows.")
                 if report['duplicate_columns']:
                     st.warning(f"⚠️ Found duplicate column names: {', '.join(report['duplicate_columns'])}.")
                 
-                # Column analysis table
+                # Column analysis table with missing values integrated
                 st.markdown("---")
                 st.subheader("Column Analysis")
                 column_df = pd.DataFrame(report['column_info']).T.rename(columns={
@@ -191,7 +185,11 @@ def main():
                     'unique_values': 'Unique Values',
                     'unique_ratio': 'Uniqueness (%)'
                 })
-                column_df['Uniqueness (%)'] = (column_df['Uniqueness (%)'] * 100).round(1)
+                column_df['Missing Count'] = report['missing_counts']
+                column_df['Missing (%)'] = (report['missing_counts'] / report['summary']['total_rows'] * 100).round(1)
+
+                column_df = column_df[['Type', 'Unique Values', 'Uniqueness (%)', 'Missing Count', 'Missing (%)']]
+                
                 st.dataframe(column_df, use_container_width=True)
 
                 # Recommendations
