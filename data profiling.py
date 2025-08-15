@@ -12,7 +12,7 @@ from io import BytesIO
 def create_profile_report_data(df, filename):
     """
     Analyzes a DataFrame and generates a dictionary with the specified profiling structure,
-    including detailed column statistics.
+    including detailed column statistics and issue descriptions.
     """
     rows, cols = df.shape
 
@@ -183,7 +183,12 @@ def main():
             
             # Create a dataframe for the column summary table with details
             summary_df = pd.DataFrame(report["columnSummary"])
-            st.table(summary_df[['column', 'type', 'missing_percent', 'unique', 'details']])
+            summary_df = summary_df.rename(columns={
+                'missing_percent': 'Missing',
+                'unique': 'Unique',
+                'details': 'Details'
+            })
+            st.table(summary_df[['column', 'type', 'Missing', 'Unique', 'Details']])
 
             st.markdown("---")
             st.header("Data Quality Issues")
