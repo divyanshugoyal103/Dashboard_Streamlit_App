@@ -201,6 +201,24 @@ def main():
                     st.info(rec)
                 
                 # Download button
+                # Build the multi-line parts of the report string separately
+                missing_values_text = "• No missing values found" if report['total_missing'] == 0 else "\n".join(
+                    f"• {col}: {info['count']} ({info['percentage']:.1f}%)" for col, info in report['missing_analysis'].items()
+                )
+                
+                penalties_text = "• No penalties" if not report['penalties'] else "\n".join(
+                    f"• {p}" for p in report['penalties']
+                )
+
+                column_types_text = "\n".join(
+                    f"• {col}: {info['type']} ({info['unique_values']} unique, {info['unique_ratio'] * 100:.1f}% unique)"
+                    for col, info in report['column_info'].items()
+                )
+
+                recommendations_text = "\n".join(
+                    f"{i+1}. {rec}" for i, rec in enumerate(report['recommendations'])
+                )
+
                 report_text = f"""
 DATA QUALITY REPORT
 ==================================================
@@ -213,20 +231,20 @@ SUMMARY:
 • File Size: {uploaded_file.size / 1024:.1f} KB
 
 MISSING VALUES:
-{"• No missing values found" if report['total_missing'] == 0 else "\\n".join(f"• {col}: {info['count']} ({info['percentage']:.1f}%)" for col, info in report['missing_analysis'].items())}
+{missing_values_text}
 
 DUPLICATE ROWS: {report['duplicate_rows']}
 DUPLICATE COLUMNS: {", ".join(report['duplicate_columns']) if report['duplicate_columns'] else "None"}
 
 COLUMN TYPES:
-{"\\n".join(f"• {col}: {info['type']} ({info['unique_values']} unique, {info['unique_ratio'] * 100:.1f}% unique)" for col, info in report['column_info'].items())}
+{column_types_text}
 
 QUALITY SCORE: {report['quality_score']:.1f}/100
 Penalties:
-{"• No penalties" if not report['penalties'] else "\\n".join(f"• {p}" for p in report['penalties'])}
+{penalties_text}
 
 RECOMMENDATIONS:
-{"\\n".join(f"{i+1}. {rec}" for i, rec in enumerate(report['recommendations']))}
+{recommendations_text}
 """
                 st.download_button(
                     label="Download Full Report",
