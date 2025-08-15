@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import json
 from datetime import datetime
+from io import BytesIO
 
 # --- Custom CSS for a professional look ---
 st.markdown("""
@@ -231,28 +232,47 @@ def main():
         )
 
         if uploaded_file:
-            # Add the download button for the JSON report
-            report_data = create_profile_report_data(pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file, engine='openpyxl'), uploaded_file.name)
-            json_report = json.dumps(report_data, indent=2)
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            download_filename = f"profile_{uploaded_file.name.split('.')[0]}_{timestamp}.json"
-            
             st.markdown("---")
-            st.download_button(
-                label="⬇️ Download Full JSON Report",
-                data=json_report,
-                file_name=download_filename,
-                mime="application/json",
-                use_container_width=True
-            )
+            st.success("File uploaded! Analyzing...")
+
+            file_extension = uploaded_file.name.split('.')[-1].lower()
+            try:
+                if file_extension == 'csv':
+                    df = pd.read_csv(uploaded_file)
+                elif file_extension in ['xlsx', 'xls']:
+                    df = pd.read_excel(uploaded_file, engine='openpyxl')
+                else:
+                    st.error("Unsupported file format.")
+                    return
+                
+                # Generate report data and make it available for download
+                report_data = create_profile_report_data(df, uploaded_file.name)
+                json_report = json.dumps(report_data, indent=2)
+                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                download_filename = f"profile_{uploaded_file.name.split('.')[0]}_{timestamp}.json"
+                
+                st.download_button(
+                    label="⬇️ Download Full JSON Report",
+                    data=json_report,
+                    file_name=download_filename,
+                    mime="application/json",
+                    use_container_width=True
+                )
+
+            except Exception as e:
+                st.error(f"Error reading file: {e}")
+                st.info("Please check if the file is correctly formatted.")
+                return
 
     # --- Main Content Area ---
     st.title("📊 Data Profiler")
     st.markdown("## Instant Insights & Quality Analysis")
 
-    if uploaded_file:
+    if uploaded_file is None:
+        st.info("⬅️ Please upload a file to get started.")
+    else:
         try:
-            with st.spinner("⏳ Reading your file..."):
+            with st.spinner("⏳ Analyzing data..."):
                 file_extension = uploaded_file.name.split('.')[-1].lower()
                 
                 if file_extension == 'csv':
@@ -260,6 +280,11 @@ def main():
                 elif file_extension in ['xlsx', 'xls']:
                     df = pd.read_excel(uploaded_file, engine='openpyxl')
             
+            # Check if the DataFrame is empty
+            if df.empty:
+                st.warning("The uploaded file is empty or could not be read.")
+                return
+
             st.success(f"🎉 **Uploaded:** {uploaded_file.name}")
             
             # Generate the report data
@@ -316,9 +341,6 @@ def main():
         except Exception as e:
             st.error(f"An error occurred: {e}")
             st.info("Please check if your file format is correct and the data is not corrupt.")
-
-    else:
-        st.info("⬅️ Please upload a file to get started.")
 
 if __name__ == "__main__":
     main()
