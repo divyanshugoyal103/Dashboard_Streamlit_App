@@ -12,7 +12,7 @@ from io import BytesIO
 def create_profile_report_data(df, filename):
     """
     Analyzes a DataFrame and generates a dictionary with the specified profiling structure,
-    including detailed column statistics and issue descriptions.
+    including detailed column statistics and specific duplicate information.
     """
     rows, cols = df.shape
 
@@ -28,11 +28,24 @@ def create_profile_report_data(df, filename):
     column_summary = []
     quality_issues = []
     optimization_suggestions = []
+
+    # Check for duplicate columns
+    duplicate_cols = df.columns[df.columns.duplicated()].unique().tolist()
+    if duplicate_cols:
+        quality_issues.append({
+            "type": "Duplicate Columns",
+            "count": len(duplicate_cols),
+            "details": f"The following columns are duplicated: {', '.join(duplicate_cols)}"
+        })
     
-    # Check for duplicate rows
-    duplicates = df.duplicated().sum()
-    if duplicates > 0:
-        quality_issues.append(f"{duplicates} duplicate rows found")
+    # Check for duplicate rows and get a preview of them
+    duplicated_rows_df = df[df.duplicated(keep='first')]
+    if not duplicated_rows_df.empty:
+        quality_issues.append({
+            "type": "Duplicate Rows",
+            "count": len(duplicated_rows_df),
+            "details": duplicated_rows_df.to_dict('records')
+        })
 
     # Analyze each column
     for col in df.columns:
@@ -73,8 +86,13 @@ def create_profile_report_data(df, filename):
             upper_bound = q3 + 1.5 * iqr
             outliers = series[(series < lower_bound) | (series > upper_bound)].count()
             if outliers > 0:
-                quality_issues.append(f"{col}: {outliers} potential outliers detected")
-                details += f"\n{outliers} outliers"
+                quality_issues.append({
+                    "type": "Outliers",
+                    "column": col,
+                    "count": int(outliers),
+                    "details": f"{col}: {int(outliers)} potential outliers detected"
+                })
+                details += f"\n{int(outliers)} outliers"
             
         if report_type == "categorical":
             # Get top values for categorical data
@@ -83,9 +101,13 @@ def create_profile_report_data(df, filename):
                 for val, percent in value_counts.items():
                     details += f"Top: {val} ({percent * 100:.1f}%)"
         
-        # Check for potential issues and optimizations
+        # Check for potential high cardinality
         if report_type == "categorical" and unique_count / rows > 0.95:
-            quality_issues.append(f"{col}: Potential ID column ({unique_count / rows * 100:.0f}% unique)")
+            quality_issues.append({
+                "type": "High Cardinality",
+                "column": col,
+                "details": f"{col}: Potential ID column ({unique_count / rows * 100:.0f}% unique)"
+            })
         
         if report_type == "categorical" and unique_count < 0.5 * rows:
             optimization_suggestions.append(f"Convert '{col}' to categorical type for memory savings")
@@ -169,32 +191,21 @@ def main():
                 st.metric("Est. Memory", f"{report['basicInfo']['memoryEstimate']} MB")
 
             st.markdown("---")
-            st.header("Column Types")
-            col_type1, col_type2, col_type3 = st.columns(3)
-            with col_type1:
-                st.metric("Numeric", report["columnTypes"]["numeric"])
-            with col_type2:
-                st.metric("Categorical", report["columnTypes"]["categorical"])
-            with col_type3:
-                st.metric("Date/Time", report["columnTypes"]["date/time"])
-
-            st.markdown("---")
             st.header("Column Analysis")
             
             # Create a dataframe for the column summary table with details
             summary_df = pd.DataFrame(report["columnSummary"])
-            summary_df = summary_df.rename(columns={
-                'missing_percent': 'Missing',
-                'unique': 'Unique',
-                'details': 'Details'
-            })
-            st.table(summary_df[['column', 'type', 'Missing', 'Unique', 'Details']])
+            st.table(summary_df[['column', 'type', 'missing_percent', 'unique', 'details']])
 
             st.markdown("---")
             st.header("Data Quality Issues")
             if report["qualityIssues"]:
                 for issue in report["qualityIssues"]:
-                    st.warning(f"⚠️ {issue}")
+                    if issue["type"] == "Duplicate Rows":
+                        st.warning(f"⚠️ **{issue['count']}** duplicate rows found.")
+                        st.dataframe(pd.DataFrame(issue["details"]))
+                    else:
+                        st.warning(f"⚠️ {issue['details']}")
             else:
                 st.success("✅ No major data quality issues found.")
 
