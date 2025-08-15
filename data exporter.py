@@ -284,32 +284,12 @@ def main():
                         )
                         st.success("✅ SQLite database ready for download!")
             
-            # Data analysis section
+            # Statistical analysis section
             if len(df.select_dtypes(include=['number']).columns) > 0:
-                st.subheader("📊 Quick Analysis")
+                st.subheader("📊 Statistical Analysis")
                 
                 with st.expander("Statistical Summary"):
                     st.dataframe(df.describe(), use_container_width=True)
-                
-                # Simple visualization
-                numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
-                if len(numeric_cols) > 0:
-                    with st.expander("📈 Data Visualization"):
-                        chart_type = st.selectbox("Chart Type", ["Line Chart", "Bar Chart", "Area Chart"])
-                        selected_cols = st.multiselect(
-                            "Select columns to visualize", 
-                            numeric_cols, 
-                            default=numeric_cols[:3]  # Default to first 3 numeric columns
-                        )
-                        
-                        if selected_cols:
-                            chart_data = df[selected_cols]
-                            if chart_type == "Line Chart":
-                                st.line_chart(chart_data)
-                            elif chart_type == "Bar Chart":
-                                st.bar_chart(chart_data)
-                            elif chart_type == "Area Chart":
-                                st.area_chart(chart_data)
     
     else:
         # Welcome message
@@ -322,14 +302,13 @@ def main():
         - 📊 **Data Preview**: Interactive data exploration with customizable row count
         - 📈 **Statistics**: Automatic data profiling and summary statistics
         - 💾 **Multiple Export Formats**: Excel (with formatting), CSV, JSON (with metadata), SQLite
-        - 🎨 **Data Visualization**: Quick charts for numeric data
         - 📋 **Column Analysis**: Detailed information about each column
         
         ### 🚀 How to use:
         1. Upload your data file using the file uploader in the sidebar
         2. Explore your data with the preview and statistics
         3. Choose your export format and download the processed file
-        4. Optionally, explore quick visualizations for numeric data
+        4. View detailed column analysis and statistical summaries
         """)
 
 if __name__ == "__main__":
