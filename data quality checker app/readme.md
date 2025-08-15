@@ -5,6 +5,8 @@ Five Python scripts useful for data science tasks. Stop wrestling with repetitiv
 ## Usage Examples
 
 ### Quick Data Quality Check
+
+ App url- https://dashboardappapp-n5zdaaoappnf2f9mbz6eenj.streamlit.app/
 ```python
 from data_quality_checker import data_quality_report
 import pandas as pd
